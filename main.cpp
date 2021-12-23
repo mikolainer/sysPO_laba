@@ -233,6 +233,7 @@ int main(int argc, char *argv[]){
     }
 
     if (!error){
+        printf("Leks analys SUCCESS!\n");
         printf("%s\n%25s\n%s\n %15s%25s\n%s\n",
         "--------------------------------------------------",
         "LEKS TABLE",
@@ -242,7 +243,7 @@ int main(int argc, char *argv[]){
         for (int i=0; i<=num_of_leksem; i++){
             printf(" %-32s | %s \n", table[i].leksema, tName[table[i].type]);
         }
-        printf("Leks analys SUCCESS!\n\n");
+        printf("\n\n");
     }
 
     fclose(inp);
@@ -362,7 +363,7 @@ int main(int argc, char *argv[]){
                 ( !strcmp(left->val.leksema, ")") && !strcmp(input.beg->val.leksema, "xor") )  ||
 
                 // [;]
-                ( !strcmp(left->val.leksema, ")") && input.beg->val.type == end )    ||
+                ( !strcmp(left->val.leksema, ";") && (input.beg->val.type == end || input.beg->val.type == ident)) ||
 
                 // [and]
                 ( !strcmp(left->val.leksema, "and") && !strcmp(input.beg->val.leksema, ")") )    ||
@@ -372,15 +373,15 @@ int main(int argc, char *argv[]){
                 ( !strcmp(left->val.leksema, "and") && !strcmp(input.beg->val.leksema, "xor") )  ||
 
                 // [a]
-                ( (left->val.type == ident || stack.end->val.type == ident) &&
+                ( (left->val.type == konst || left->val.type == ident) &&
                                                             !strcmp(input.beg->val.leksema, ")") )    ||
-                ( (left->val.type == ident || stack.end->val.type == ident) &&
+                ( (left->val.type == konst || left->val.type == ident) &&
                                                             !strcmp(input.beg->val.leksema, ";") )    ||
-                ( (left->val.type == ident || stack.end->val.type == ident) &&
+                ( (left->val.type == konst || left->val.type == ident) &&
                                                             !strcmp(input.beg->val.leksema, "and") )  ||
-                ( (left->val.type == ident || stack.end->val.type == ident) &&
+                ( (left->val.type == konst || left->val.type == ident) &&
                                                             !strcmp(input.beg->val.leksema, "or") )   ||
-                ( (left->val.type == ident || stack.end->val.type == ident) &&
+                ( (left->val.type == konst || left->val.type == ident) &&
                                                             !strcmp(input.beg->val.leksema, "xor") )  ||
 
                 // [or]
@@ -393,9 +394,7 @@ int main(int argc, char *argv[]){
                 ( !strcmp(left->val.leksema, "xor") && !strcmp(input.beg->val.leksema, ")") )   ||
                 ( !strcmp(left->val.leksema, "xor") && !strcmp(input.beg->val.leksema, ";") )   ||
                 ( !strcmp(left->val.leksema, "xor") && !strcmp(input.beg->val.leksema, "or") )  ||
-                ( !strcmp(left->val.leksema, "xor") && !strcmp(input.beg->val.leksema, "xor") ) ||
-
-                ( !strcmp(left->val.leksema, ";") && input.beg->val.type == end )
+                ( !strcmp(left->val.leksema, "xor") && !strcmp(input.beg->val.leksema, "xor") )
             )
             {// there are svertka action
             //// S
@@ -512,6 +511,12 @@ int main(int argc, char *argv[]){
 
             myList_push( new my_list_node<int>, &rules );
             rules.end->val = rule;
+        }else
+        //// error
+        {
+            printf("Sintax error!\n");
+            error = syntax;
+            break;
         }
     }
 //////////////////////////
@@ -532,6 +537,8 @@ int main(int argc, char *argv[]){
                 break;
         }
     }
+
+    printf("\n\n");
 
 
 
