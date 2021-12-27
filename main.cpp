@@ -9,39 +9,6 @@
 #include <cassert>
 #define WRD_LEN 255
 
-////////////////////////////
-//// TABLE
-////////////////////////////
-
-char tName[5][14] = {"none", "const", "operator", "keyword", "identificator"};
-typedef enum{
-    none,
-    konst,
-    operatr,
-    keywd,
-    ident,
-    start,
-    end,
-    neterm
-}type;
-
-typedef enum{
-    ok,
-    notAvlConst,
-    syntax
-}myerrno;
-
-typedef struct literTableVal{
-    type type;
-    char leksema[WRD_LEN+1];
-}litera;
-
-litera table[UINT16_MAX];
-int num_of_leksem = 0; // количество записанных лексем
-void addWrd(char* wrd, int num, type its){
-    table[num].type = its;
-    strcpy(table[num].leksema, wrd);
-}
 
 ////////////////////////////
 //// MY STRUCTURES
@@ -87,11 +54,49 @@ void myList_push(my_list_node<T> *node, my_list<T> *list){
 template <typename T>
 my_list_node<T> myList_pop(my_list<T> *list){
      my_list_node <T> node = *(list->end);
-     list->end = list->end->prev_ptr;
-     myList_delete(list->end->next_ptr);
+     if (list->end != nullptr){
+         list->end = list->end->prev_ptr;
+         myList_delete(list->end->next_ptr);
+     }
      return node;
-}
+};
 
+//// using in codegenerator
+struct tree_node{
+    my_list<char*>* child_code;
+    my_list<char*>* code;
+};
+
+//// using in lexer
+char tName[5][14] = {"none", "const", "operator", "keyword", "identificator"};
+typedef enum{
+    none,
+    konst,
+    operatr,
+    keywd,
+    ident,
+    start,
+    end,
+    neterm
+}type;
+
+typedef enum{
+    ok,
+    notAvlConst,
+    syntax
+}myerrno;
+
+typedef struct literTableVal{
+    type type;
+    char leksema[WRD_LEN+1];
+}litera;
+
+litera table[UINT16_MAX];
+int num_of_leksem = 0; // количество записанных лексем
+void addWrd(char* wrd, int num, type its){
+    table[num].type = its;
+    strcpy(table[num].leksema, wrd);
+}
 
 ////////////////////////////
 //// INPUT ANALYS FUNCS
@@ -138,6 +143,78 @@ int haveOperator(char* wrd){ // returns num of arrElem
 int haveKomment(char* wrd){ // returns num of arrElem
     if (strstr(wrd, startcomment) != NULL) return 1;
     return 0;
+}
+
+//// using in codegenerator
+
+void init_empty_codelist(my_list<char*>* list){
+    list->beg = list->end = new my_list_node<char*>;
+    list->beg->next_ptr = list->beg->prev_ptr = nullptr;
+    list->beg->val = new char[1];
+    list->beg->val[0] = '\0';
+}
+
+void add_text_to_code (char* text, my_list<char*>* list){
+    init_empty_codelist(list);
+    myList_push(new my_list_node<char*>, list);
+    list->end->val = new char[strlen(text)];
+    strcpy(list->end->val, text);
+}
+
+char* str_from_list(my_list<char*>* strlist){
+    char* out = (char*) calloc( 1, 1 );
+
+    my_list_node<char*>* iter = strlist->beg;
+    while (1){
+        int point = strlen(out);
+        realloc(out, point + strlen(iter->val));
+        strcpy(out+point, iter->val);
+
+        if (iter->next_ptr != nullptr){
+            iter = iter->next_ptr;
+        }else{
+            break;
+        }
+    }
+}
+
+char * strappend( char * str1, char * str2 ){
+    char *common = new char[ strlen(str1) + strlen(str2) + 1 ];
+    strcpy(common, str1);
+    strcpy(common + strlen(str1), str2);
+    return common;
+}
+
+char * getcode( my_list<int>* rules, my_list<litera>* idents ){
+    int rule;
+
+    rule = myList_pop(rules).val;
+    char *code;
+
+    if ( rule == 4 || rule == 6 || rule == 7 ){
+        code = getcode( rules, idents );
+    }else if ( rule == 9 ){
+        code = strappend(strappend( "mov ax,", myList_pop(idents).val.leksema ) , "\n" );
+    }else if ( rule == 8 ){
+        code = strappend(getcode( rules, idents ), "not ax\n" );
+    }else if ( rule == 1 ){
+        char *text = getcode( rules, idents );
+        code = strappend(text, strappend( strappend( "mov ", myList_pop(idents).val.leksema ), ",ax\n") );
+    }else if ( rule == 2 ){
+        char *back  = strappend( getcode( rules, idents ), "mov bx, ax\n" );
+        char *front = strappend( getcode( rules, idents ), "or ax, bx\n" );
+        code = strappend( front, back );
+    }else if ( rule == 3 ){
+        char *back  = strappend( getcode( rules, idents ), "mov bx, ax\n" );
+        char *front = strappend( getcode( rules, idents ), "xor ax, bx\n" );
+        code = strappend( front, back );
+    }else if ( rule == 5 ){
+        char *back  = strappend( getcode( rules, idents ), "mov bx, ax\n" );
+        char *front = strappend( getcode( rules, idents ), "and ax, bx\n" );
+        code = strappend( front, back );
+    }
+    rule = 0;
+    return code;
 }
 
 ////////////////////////////
@@ -232,6 +309,11 @@ int main(int argc, char *argv[]){
         }
     }
 
+    my_list<litera> varlist;
+    varlist.beg = varlist.end = new my_list_node<litera>;
+    varlist.end->val.type = end;
+    myList_push(new my_list_node<litera>, &varlist);
+    varlist.end->val.type = end;
     if (!error){
         printf("Leks analys SUCCESS!\n");
         printf("%s\n%25s\n%s\n %15s%25s\n%s\n",
@@ -242,6 +324,14 @@ int main(int argc, char *argv[]){
         "----------------------------------+---------------");
         for (int i=0; i<=num_of_leksem; i++){
             printf(" %-32s | %s \n", table[i].leksema, tName[table[i].type]);
+            if ( table[i].type == ident || table[i].type == konst ){
+                varlist.end->val.type = table[i].type;
+                for (int i=0; i<WRD_LEN+1; ++i)
+                    varlist.end->val.leksema[i] = '\0';
+                strcpy(varlist.end->val.leksema, table[i].leksema);
+                myList_push(new my_list_node<litera>, &varlist);
+                varlist.end->val.type = end;
+            }
         }
         printf("\n\n");
     }
@@ -522,10 +612,13 @@ int main(int argc, char *argv[]){
 //////////////////////////
 ///      END OF TABLE
 //////////////////////////
+    int num_of_rules =0;
     if (error == ok){
+
         printf("RULES: ");
         my_list_node<int> *iter = rules.beg->next_ptr;
         for (int i=0; ;++i){
+            ++num_of_rules;
             printf("%d, ", iter->val);
             if (i==10){
                 printf("\n       ");
@@ -540,8 +633,23 @@ int main(int argc, char *argv[]){
 
     printf("\n\n");
 
-
-
 //// END OF SINTAXER
+
+//// START OF CODEGENERATOR
+
+    FILE* outp = fopen("result.code", "w");
+
+    myList_pop(&varlist);
+    char* out_line;
+
+    while(rules.end->val != 0){
+        out_line = getcode(&rules, &varlist);
+        fprintf (outp, "%s", out_line);
+    }
+
+
+    fclose(outp);
+
+//// END OF CODEGENERATOR
     return 0;
 }
